@@ -22,7 +22,7 @@ contract NFTMarket is ERC721URIStorage, Ownable {
   // if tokenURI is not empty string => an NFT was created
   // if price is not 0 => an NFT was listed
   // if price is 0 && tokenUEI ia an empty string => NFT was transferred (either bought, or the listing was canceled)
-  event NFTTransfer(uint256 tokenID, address to, string tokenURI, uint256 price);
+  event NFTTransfer(uint256 tokenID, address from, address to, string tokenURI, uint256 price);
 
   constructor() ERC721("Inno NFTs", "INFT") {
     _owner = msg.sender;
@@ -34,7 +34,7 @@ contract NFTMarket is ERC721URIStorage, Ownable {
     _safeMint(msg.sender, currentID);
     _setTokenURI(currentID, tokenURI);
 
-    emit NFTTransfer(currentID, msg.sender, tokenURI, 0);
+    emit NFTTransfer(currentID, address(0), msg.sender, tokenURI, 0);
   }
 
   // listNFT
@@ -43,7 +43,7 @@ contract NFTMarket is ERC721URIStorage, Ownable {
     transferFrom(msg.sender, address(this), tokenID); // transfer ownership from owner to the NFT market contract
     _listings[tokenID] = NFTListing(price, msg.sender);
 
-    emit NFTTransfer(tokenID, address(this), "", price);
+    emit NFTTransfer(tokenID, msg.sender, address(this), "", price);
   }
 
   // buyNFT
@@ -55,18 +55,18 @@ contract NFTMarket is ERC721URIStorage, Ownable {
     clearListing(tokenID);
     payable(listing.seller).transfer(listing.price.mul(95).div(100));
 
-    emit NFTTransfer(tokenID, msg.sender, "", 0);
+    emit NFTTransfer(tokenID, address(this), msg.sender, "", 0);
   }
 
   // cancelNFT
   function cancelListing(uint256 tokenID) public {
     NFTListing memory listing = _listings[tokenID];
     require(listing.price > 0, "NFTMarket: nft not listed for sale");
-    require(listing.seller == msg.sender, "NFTMarket: you're not the owner");
-    transferFrom(address(this), msg.sender, tokenID);
+    require(listing.seller == msg.sender, "NFTMarket: you're not the seller");
+    ERC721(address(this)).transferFrom(address(this), msg.sender, tokenID);
     clearListing(tokenID);
 
-    emit NFTTransfer(tokenID, msg.sender, "", 0);
+    emit NFTTransfer(tokenID, address(this), msg.sender, "", 0);
   }
 
   function withdrawFunds() public onlyOwner {
